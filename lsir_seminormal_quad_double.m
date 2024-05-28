@@ -39,7 +39,6 @@ for kappa_ind = 1:kappa_no
         R = R(1:n,1:n);
         Q = Q(:,1:n);
 
-
         x = R\(Q'*b);
 
         u_val = 4*eps('double'); % eps('double')=2u
@@ -48,8 +47,17 @@ for kappa_ind = 1:kappa_no
          r = mp(b) - mp(A)*mp(x);
 
 
-        for ind = 1:ir_it_max
+        x_relerror = norm(mp(x,64) - mp(xtrue,64))/xtruen;
+        r_relerror = norm(mp(r,64) - mp(rtrue,64))/rtruen;
 
+        if x_relerror <= u_val %&& r_relerror <= u_val
+            converged = true;
+        end
+         
+        ind = 0;
+        
+        while ~converged && ind < ir_it_max
+        ind = ind+1;
             % solve
             ATr = mp(A')*r;
             xn1 = (R')\double(ATr);
@@ -67,13 +75,14 @@ for kappa_ind = 1:kappa_no
 
             if x_relerror <= u_val %&& r_relerror <= u_val
                 converged = true;
-                break
             end
 
         end
 
         x_error(kappa_ind,noise_ind) = x_relerror;
         r_error(kappa_ind,noise_ind) = r_relerror;
+        
+        
 
         if converged
             ir_iter(kappa_ind,noise_ind) = ind;
@@ -85,7 +94,7 @@ end
 
 %% plots
 
-plot_results(x_error,r_error,ir_iter,xvalues,yvalues)
+plot_results(x_error,r_error,ir_iter,xvalues,yvalues,[])
 
 end
 

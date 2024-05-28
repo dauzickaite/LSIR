@@ -1,4 +1,4 @@
-function plot_results(x_error,r_error,ir_iter,xvalues,yvalues)
+function plot_results(x_error,r_error,ir_iter,xvalues,yvalues,inner_it)
 
 figure
 hx = heatmap(xvalues,yvalues,x_error);
@@ -31,3 +31,16 @@ hit.Title = 'IR iterations';
 hit.XLabel = '|| r^* ||';
 hit.YLabel = '\kappa(A)';
 set(gca, 'FontSize',50)
+
+if isempty(inner_it)
+else
+    figure
+    hit = heatmap(xvalues,yvalues,inner_it);
+
+    hit.Title = 'Inner iterations';
+    hit.XLabel = '|| r^* ||';
+    hit.YLabel = '\kappa(A)';
+    set(gca, 'FontSize',50)
+end
+
+

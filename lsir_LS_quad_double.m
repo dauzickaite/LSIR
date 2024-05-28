@@ -13,6 +13,11 @@ switch solver
 
         lsqrit = n;
         lsqrtol = 1e-14;
+                
+        inner_it = zeros(kappa_no,noise_no);
+
+    case 'QR'
+        inner_it=[];
 
 end
 
@@ -60,8 +65,18 @@ for kappa_ind = 1:kappa_no
          % compute the residual
          r = mp(b) - mp(A)*mp(x);
 
+         x_relerror = norm(mp(x,64) - mp(xtrue,64))/xtruen;
+         r_relerror = norm(mp(r,64) - mp(rtrue,64))/rtruen;
 
-        for ind = 1:ir_it_max
+        if x_relerror <= u_val %&& r_relerror <= u_val
+            converged = true;
+        end
+         
+        ind = 0;
+        
+        while ~converged && ind < ir_it_max
+        %for ind = 1:ir_it_max
+        ind = ind+1;
 
             % solve
             switch solver
@@ -70,10 +85,12 @@ for kappa_ind = 1:kappa_no
                      xn = R\QTr;
                 case 'iter'
                     if precond
-                        xn = lsqr(A,double(r),lsqrtol,lsqrit,R);
+                        [xn,~,~,lsit] = lsqr(A,double(r),lsqrtol,lsqrit,R);
                     else
-                        xn = lsqr(A,double(r),lsqrtol,lsqrit);
+                        [xn,~,~,lsit] = lsqr(A,double(r),lsqrtol,lsqrit);
                     end
+                    
+                    inner_it(kappa_ind,noise_ind) = inner_it(kappa_ind,noise_ind) + lsit;
 
             end
 
@@ -89,7 +106,6 @@ for kappa_ind = 1:kappa_no
 
             if x_relerror <= u_val %&& r_relerror <= u_val
                 converged = true;
-                break
             end
 
         end
@@ -101,13 +117,16 @@ for kappa_ind = 1:kappa_no
             ir_iter(kappa_ind,noise_ind) = ind;
         else
             ir_iter(kappa_ind,noise_ind) = nan;
+            if strcmp(solver,'iter')
+                inner_it(kappa_ind,noise_ind) = nan;
+            end
         end
     end
 end
 
 %% plots
 
-plot_results(x_error,r_error,ir_iter,xvalues,yvalues)
+plot_results(x_error,r_error,ir_iter,xvalues,yvalues,inner_it)
 
 end
 

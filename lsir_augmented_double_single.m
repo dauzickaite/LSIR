@@ -10,13 +10,20 @@ ir_iter = zeros(kappa_no,noise_no);
 switch solver
     case 'iter' 
         gmres_iter = zeros(kappa_no,noise_no);
-        gmres_flag = zeros(kappa_no,noise_no);
 
         lsqrit = n;
         lsqrtol = 1e-7;
 
-        gmresit = n+m;
-        gmrestol = 1e-7;
+        gmresit = 50; 
+        gmrestol = 1e-6;
+        
+        Pright = @(x,prchoice) x;
+                
+        u = 'single';
+        uA = 'single';
+
+case 'QR'
+        gmres_iter= [];        
 end
 
 rng(1234)
@@ -60,7 +67,8 @@ for kappa_ind = 1:kappa_no
                 x = lsqr(A,b,lsqrtol,lsqrit);
                
                 Aa = [alpha*eye(m) A; A' zeros(n)];
-                P = @(x) precAug(x,Q,R,alpha);
+                P = @(x,prchoice) precAug(x,prchoice,Q,R,alpha);
+                
         end
 
         r = b - A*x;
@@ -68,7 +76,18 @@ for kappa_ind = 1:kappa_no
         u_val = 4*eps('single'); % eps('single')=2u
 
 
-        for ind = 1:ir_it_max
+        x_relerror = norm(mp(x,64) - mp(xtrue,64))/xtruen;
+        r_relerror = norm(mp(r,64) - mp(rtrue,64))/rtruen;
+
+        if x_relerror <= u_val %&& r_relerror <= u_val
+            converged = true;
+        end
+         
+        ind = 0;
+        
+        while ~converged && ind < ir_it_max
+        ind = ind+1;
+
 
             % compute the residuals for augmented system
             f = double(b) - double(A)*double(x) - double(r);
@@ -85,13 +104,17 @@ for kappa_ind = 1:kappa_no
 
                 case 'iter'
                     if precond
-                        [z,flag,~,git] = gmres(Aa,single([alpha*f;g]),gmresit,gmrestol,[],P);
+                        [z,~,~,git] = mpgmres(Aa,single([alpha*f;g]),...
+                            zeros(m+n,1),gmrestol,1,gmresit,Pright,P,u,uA);
                     else
-                        [z,flag,~,git] = gmres(Aa,single([alpha*f;g]),gmresit,gmrestol);
+                        Pleft = @(x,prchoice) x;
+                        [z,~,~,git] = mpgmres(Aa,single([alpha*f;g]),...
+                            zeros(m+n,1),gmrestol,1,gmresit,Pright,Pleft,u,uA);
+                        
                     end
 
-                    gmres_iter(kappa_ind,noise_ind) = git(2);
-                    gmres_flag(kappa_ind,noise_ind) = flag;
+                    gmres_iter(kappa_ind,noise_ind) = gmres_iter(kappa_ind,noise_ind) + git;
+                    
 
                     rn = z(1:m);
                     xn = z(m+1:end)/alpha;
@@ -108,7 +131,6 @@ for kappa_ind = 1:kappa_no
 
             if x_relerror <= u_val %&& r_relerror <= u_val
                 converged = true;
-                break
             end
 
         end
@@ -120,6 +142,9 @@ for kappa_ind = 1:kappa_no
             ir_iter(kappa_ind,noise_ind) = ind;
         else
             ir_iter(kappa_ind,noise_ind) = nan;
+            if strcmp(solver,'iter')
+                gmres_iter(kappa_ind,noise_ind) = nan;
+            end
         end
     end
 end
@@ -129,11 +154,11 @@ switch solver
     case 'QR'
         plot_convergence_criteria_augmented(kappa_list,noise_list,xvalues,yvalues,2^(24))
 end
-plot_results(x_error,r_error,ir_iter,xvalues,yvalues)
+plot_results(x_error,r_error,ir_iter,xvalues,yvalues,gmres_iter)
 
 end
 %% preconditioner
-function Px = precAug(x,Q,R,alpha)
+function Px = precAug(x,prchoice,Q,R,alpha)
 
 [n,~] = size(R);
 [m,~] = size(Q); 

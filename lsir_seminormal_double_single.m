@@ -7,7 +7,6 @@ x_error = zeros(kappa_no,noise_no);
 r_error = zeros(kappa_no,noise_no);
 ir_iter = zeros(kappa_no,noise_no);
 
-
 rng(1234)
 xt = rand(n,1);
 xt = xt/norm(xt);
@@ -40,16 +39,25 @@ for kappa_ind = 1:kappa_no
         R = R(1:n,1:n);
         Q = Q(:,1:n);
 
-
         x = R\(Q'*b);
-
+        
         u_val = 4*eps('single'); % eps('single')=2u
 
-         % compute the residual
-         r = mp(b) - mp(A)*mp(x);
+        % compute the residual
+        r = double(b) - double(A)*double(x);
 
 
-        for ind = 1:ir_it_max
+        x_relerror = norm(mp(x,64) - mp(xtrue,64))/xtruen;
+        r_relerror = norm(mp(r,64) - mp(rtrue,64))/rtruen;
+
+        if x_relerror <= u_val %&& r_relerror <= u_val
+            converged = true;
+        end
+         
+        ind = 0;
+        
+        while ~converged && ind < ir_it_max
+        ind = ind+1;
 
             % solve
             ATr = double(A')*r;
@@ -86,7 +94,7 @@ end
 
 %% plots
 
-plot_results(x_error,r_error,ir_iter,xvalues,yvalues)
+plot_results(x_error,r_error,ir_iter,xvalues,yvalues,[])
 
 end
 
